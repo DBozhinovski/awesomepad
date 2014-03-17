@@ -9,7 +9,7 @@ class DocumentEditorView extends Views.BaseView
         <textarea name='content'></textarea>
 
         <label>category</label>
-        <input type='text' name='category' />
+        <select name='category'></select><button data-action='add-category'>+</button>
 
         <div class='actions'>
           <button data-action='save'>save</button>
@@ -22,7 +22,7 @@ class DocumentEditorView extends Views.BaseView
         $output.html(output)
         $output.find("input[name='title']").val doc.title
         $output.find("textarea").val doc.content
-        $output.find("input[name='category']").val doc.category
+        $output.find("[name='category']").val doc.category
         @id = doc.id
         @mode = 'update'
         output = $output
@@ -33,6 +33,11 @@ class DocumentEditorView extends Views.BaseView
 
   render: (doc) ->
     super doc
+    categories = new Models.CategoryModel().all()
+    console.log categories
+    for id of categories
+      console.log categories[id].title
+      $("select[name='category']").append("<option>#{categories[id].title}</option")
     @bind()
 
   close: ->
@@ -49,7 +54,7 @@ class DocumentEditorView extends Views.BaseView
           record = 
             title: @element.find("input[name='title']").val()
             content: @element.find("textarea").val()
-            category: @element.find("input[name='category']").val()
+            category: @element.find("[name='category']").val()
 
           if @mode is 'update'
             record.id = @id
@@ -57,9 +62,18 @@ class DocumentEditorView extends Views.BaseView
           else
             EventEmitter.trigger 'document:store', record
 
+          if @categoryMode is 'add'
+            EventEmitter.trigger 'category:store', { title: record.category }
+
           @close()
           alert "Document saved"
+        when "add-category"
+          select = $("select[name='category']")
+          textbox = $("<input name='category' />")
 
+          select.replaceWith textbox
+          $("button[data-action='add-category']").remove()
+          @categoryMode = 'add'
         when "close"
           @close()
 

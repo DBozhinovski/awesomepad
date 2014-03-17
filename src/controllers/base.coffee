@@ -21,7 +21,7 @@ class BaseController
 
   @update: (record) ->
     @model.update record
-    @list
+    @list()
 
   @store: (record) ->
     record.id = new Date().getTime()

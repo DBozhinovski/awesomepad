@@ -1,7 +1,8 @@
 class DocumentListView extends Views.BaseView
   constructor: ->
     super $("#canvas"), (data) ->
-      output = "<ul class='documents'>"
+      output = "<h1 class='category-title'></h1>"
+      output += "<ul class='documents'>"
       for id, item of data
         output += "
           <li data-id='#{item.id}'>
@@ -13,14 +14,14 @@ class DocumentListView extends Views.BaseView
 
       output
 
-  render: (data) ->
+  render: (data, category = false) ->
     super data
+    $('.category-title').text(category) if category
     @bind()
 
   bind: ->
     @element.find('li').on 'click', (event) ->
       id = $(event.currentTarget).attr "data-id"
-      Controllers.DocumentController.show id
-
+      EventEmitter.trigger "document:show", id
 
 Views.DocumentListView = DocumentListView

@@ -56,7 +56,7 @@
 
     BaseController.update = function(record) {
       this.model.update(record);
-      return this.list;
+      return this.list();
     };
 
     BaseController.store = function(record) {
@@ -85,10 +85,14 @@
     }
 
     CategoryController.init = function() {
-      return CategoryController.__super__.constructor.init.call(this, new Models.CategoryModel(), {
-        list: Views.CategoryListView,
-        item: Views.CategoryItemView,
-        editor: Views.CategoryEditorView
+      CategoryController.__super__.constructor.init.call(this, new Models.CategoryModel(), {
+        list: Views.CategoryListView
+      });
+      EventEmitter.on("category:update", function(record) {
+        return CategoryController.update(record);
+      });
+      return EventEmitter.on("category:store", function(record) {
+        return CategoryController.store(record);
       });
     };
 
@@ -118,7 +122,23 @@
       EventEmitter.on("document:store", function(record) {
         return DocumentController.store(record);
       });
+      EventEmitter.on("document:show", function(id) {
+        return DocumentController.show(id);
+      });
+      EventEmitter.on("document:filter", function(category) {
+        return DocumentController.list(category);
+      });
       return DocumentController.list();
+    };
+
+    DocumentController.list = function(category) {
+      var listView;
+      if (category) {
+        listView = new this.views.list();
+        return listView.render(this.model.getByCategory(category), category);
+      } else {
+        return DocumentController.__super__.constructor.list.call(this);
+      }
     };
 
     return DocumentController;
@@ -202,6 +222,17 @@
       DocumentModel.__super__.constructor.call(this, "document");
     }
 
+    DocumentModel.prototype.getByCategory = function(category) {
+      var filtered, id;
+      filtered = {};
+      for (id in this.data) {
+        if (this.data[id].category === category) {
+          filtered[id] = this.data[id];
+        }
+      }
+      return filtered;
+    };
+
     return DocumentModel;
 
   })(Models.BaseModel);
@@ -215,13 +246,14 @@
       'documents': Controllers.DocumentController.list,
       'document/show': Controllers.DocumentController.show,
       'document/edit': Controllers.DocumentController.edit,
-      'document/new': Controllers.DocumentController.create
+      'document/new': Controllers.DocumentController.create,
+      'categories': Controllers.CategoryController.list
     };
 
     Router.call = function() {
       var parameters, route;
       route = arguments[0], parameters = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-      return this.routes[route].call(this.context(route), parameters);
+      return this.routes[route].call(this.context(route), parameters > 0 ? parameters : false);
     };
 
     Router.context = function(route) {
@@ -288,59 +320,18 @@
 
   Views.BaseView = BaseView;
 
-  DocumentItemView = (function(_super) {
-    __extends(DocumentItemView, _super);
-
-    function DocumentItemView() {
-      DocumentItemView.__super__.constructor.call(this, $("#canvas"), function(doc) {
-        return "        <article>          <h1>" + doc.title + "</h1>          " + doc.content + "        </article>        <div class='category'>" + doc.category + "</div>        <div class='actions'>          <button data-action='edit' data-id='" + doc.id + "'>Edit</button>          <button data-action='delete' data-id='" + doc.id + "'>Delete</button>          <button data-action='close'>Close</button>        </div>      ";
-      });
-    }
-
-    DocumentItemView.prototype.render = function(data) {
-      DocumentItemView.__super__.render.call(this, data);
-      return this.bind();
-    };
-
-    DocumentItemView.prototype.close = function() {
-      this.element.find('button').off('click');
-      return Router.call("documents");
-    };
-
-    DocumentItemView.prototype.bind = function() {
-      var _this = this;
-      return this.element.find('button').on('click', function(event) {
-        var action, target;
-        target = $(event.currentTarget);
-        action = target.attr('data-action');
-        switch (action) {
-          case 'edit':
-            return Controllers.DocumentController.edit(target.attr('data-id'));
-          case 'delete':
-            if (confirm("Are you sure?")) {
-              return Controllers.DocumentController["delete"](target.attr('data-id'));
-            }
-            break;
-          case 'close':
-            return _this.close();
-        }
-      });
-    };
-
-    return DocumentItemView;
-
-  })(Views.BaseView);
-
-  Views.DocumentItemView = DocumentItemView;
-
   CategoryListView = (function(_super) {
     __extends(CategoryListView, _super);
 
     function CategoryListView() {
       CategoryListView.__super__.constructor.call(this, $("#canvas"), function(data) {
-        var output;
-        output = "<div>Categories</div>";
-        console.log(data);
+        var id, item, output;
+        output = "<ul class='categories'>";
+        for (id in data) {
+          item = data[id];
+          output += "            <li data-id='" + item.id + "'>              <div class='title'>" + item.title + "</div>            </li>          ";
+        }
+        output += "</ul>";
         return output;
       });
     }
@@ -350,7 +341,13 @@
       return this.bind();
     };
 
-    CategoryListView.prototype.bind = function() {};
+    CategoryListView.prototype.bind = function() {
+      return this.element.find('li').on('click', function(event) {
+        var name;
+        name = $(event.currentTarget).text();
+        return EventEmitter.trigger('document:filter', name.trim());
+      });
+    };
 
     return CategoryListView;
 
@@ -368,13 +365,13 @@
         if (doc == null) {
           doc = false;
         }
-        output = "        <label>title</label>        <input type='text' name='title' />        <label>content</label>        <textarea name='content'></textarea>        <label>category</label>        <input type='text' name='category' />        <div class='actions'>          <button data-action='save'>save</button>          <button data-action='close'>cancel</button>        </div>      ";
+        output = "        <label>title</label>        <input type='text' name='title' />        <label>content</label>        <textarea name='content'></textarea>        <label>category</label>        <select name='category'></select><button data-action='add-category'>+</button>        <div class='actions'>          <button data-action='save'>save</button>          <button data-action='close'>cancel</button>        </div>      ";
         if (doc) {
           $output = $("<div>");
           $output.html(output);
           $output.find("input[name='title']").val(doc.title);
           $output.find("textarea").val(doc.content);
-          $output.find("input[name='category']").val(doc.category);
+          $output.find("[name='category']").val(doc.category);
           _this.id = doc.id;
           _this.mode = 'update';
           output = $output;
@@ -386,7 +383,14 @@
     }
 
     DocumentEditorView.prototype.render = function(doc) {
+      var categories, id;
       DocumentEditorView.__super__.render.call(this, doc);
+      categories = new Models.CategoryModel().all();
+      console.log(categories);
+      for (id in categories) {
+        console.log(categories[id].title);
+        $("select[name='category']").append("<option>" + categories[id].title + "</option");
+      }
       return this.bind();
     };
 
@@ -398,7 +402,7 @@
     DocumentEditorView.prototype.bind = function() {
       var _this = this;
       return this.element.find('button').on('click', function(event) {
-        var action, record, target;
+        var action, record, select, target, textbox;
         target = $(event.currentTarget);
         action = target.attr('data-action');
         switch (action) {
@@ -406,7 +410,7 @@
             record = {
               title: _this.element.find("input[name='title']").val(),
               content: _this.element.find("textarea").val(),
-              category: _this.element.find("input[name='category']").val()
+              category: _this.element.find("[name='category']").val()
             };
             if (_this.mode === 'update') {
               record.id = _this.id;
@@ -414,8 +418,19 @@
             } else {
               EventEmitter.trigger('document:store', record);
             }
+            if (_this.categoryMode === 'add') {
+              EventEmitter.trigger('category:store', {
+                title: record.category
+              });
+            }
             _this.close();
             return alert("Document saved");
+          case "add-category":
+            select = $("select[name='category']");
+            textbox = $("<input name='category' />");
+            select.replaceWith(textbox);
+            $("button[data-action='add-category']").remove();
+            return _this.categoryMode = 'add';
           case "close":
             return _this.close();
         }
@@ -479,7 +494,8 @@
     function DocumentListView() {
       DocumentListView.__super__.constructor.call(this, $("#canvas"), function(data) {
         var id, item, output;
-        output = "<ul class='documents'>";
+        output = "<h1 class='category-title'></h1>";
+        output += "<ul class='documents'>";
         for (id in data) {
           item = data[id];
           output += "          <li data-id='" + item.id + "'>            <img src='assets/document.png' />            <div class='title'>" + item.title + "</div>          </li>        ";
@@ -489,8 +505,14 @@
       });
     }
 
-    DocumentListView.prototype.render = function(data) {
+    DocumentListView.prototype.render = function(data, category) {
+      if (category == null) {
+        category = false;
+      }
       DocumentListView.__super__.render.call(this, data);
+      if (category) {
+        $('.category-title').text(category);
+      }
       return this.bind();
     };
 
@@ -498,7 +520,7 @@
       return this.element.find('li').on('click', function(event) {
         var id;
         id = $(event.currentTarget).attr("data-id");
-        return Controllers.DocumentController.show(id);
+        return EventEmitter.trigger("document:show", id);
       });
     };
 

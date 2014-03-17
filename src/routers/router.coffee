@@ -5,13 +5,10 @@ class Router
     'document/edit': Controllers.DocumentController.edit
     'document/new': Controllers.DocumentController.create
 
-    # 'categories': Controllers.CategoryController.list
-    # 'category/show': Controllers.CategoryController.show
-    # 'category/edit': Controllers.CategoryController.edit
-    # 'category/new': Controllers.CategoryController.create
+    'categories': Controllers.CategoryController.list
 
   @call: (route, parameters...) ->
-    @routes[route].call @context(route), parameters
+    @routes[route].call @context(route), if parameters > 0 then parameters else false
 
   @context: (route) ->
     contexts = 
@@ -21,6 +18,5 @@ class Router
       "categories": Controllers.CategoryController
 
     contexts[route.split("/")[0]]
-
 
 @Router = Router
