@@ -6,10 +6,10 @@ class DocumentEditorView extends Views.BaseView
         <input type='text' name='title' />
 
         <label>content</label>
-        <textarea name='content'></textarea>
+        <div name='content'></div>
 
         <label>category</label>
-        <select name='category'></select><button data-action='add-category'>+</button>
+        <select name='category'></select><button class='add' data-action='add-category'>+</button>
 
         <div class='actions'>
           <button data-action='save'>save</button>
@@ -17,11 +17,16 @@ class DocumentEditorView extends Views.BaseView
         </div>
       "
 
+      $output = $("<div>")
+      $output.html(output)
+
+      $output.find("[name=content]").summernote {
+        height: 400
+      }
+
       if doc
-        $output = $("<div>")
-        $output.html(output)
         $output.find("input[name='title']").val doc.title
-        $output.find("textarea").val doc.content
+        $output.find("[name='content']").code doc.content
         $output.find("[name='category']").val doc.category
         @id = doc.id
         @mode = 'update'
@@ -29,14 +34,12 @@ class DocumentEditorView extends Views.BaseView
       else
         @mode = 'create'
 
-      output
+      $output
 
   render: (doc) ->
     super doc
     categories = new Models.CategoryModel().all()
-    console.log categories
     for id of categories
-      console.log categories[id].title
       $("select[name='category']").append("<option>#{categories[id].title}</option")
     @bind()
 
@@ -53,7 +56,7 @@ class DocumentEditorView extends Views.BaseView
         when "save"
           record = 
             title: @element.find("input[name='title']").val()
-            content: @element.find("textarea").val()
+            content: @element.find("[name='content']").code()
             category: @element.find("[name='category']").val()
 
           if @mode is 'update'
