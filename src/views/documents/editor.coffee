@@ -2,22 +2,22 @@ class DocumentEditorView extends Views.BaseView
   constructor: ->
     super $("#canvas"), (doc = false) =>
       output = "
-        <label>title</label>
-        <input type='text' name='title' />
+        <label class='formitem'>title</label>
+        <input class='formitem' type='text' name='title' />
 
-        <label>content</label>
-        <div name='content'></div>
+        <label class='formitem'>content</label>
+        <div class='formitem' name='content'></div>
 
-        <label>category</label>
-        <select name='category'></select><button class='add' data-action='add-category'>+</button>
+        <label class='formitem'>category</label>
+        <select class='formitem' name='category'></select><button class='formitem add' data-action='add-category'>+</button>
 
         <div class='actions'>
-          <button data-action='save'>save</button>
-          <button data-action='close'>cancel</button>
+          <button class='formitem' data-action='save'>save</button>
+          <button class='formitem' data-action='close'>cancel</button>
         </div>
       "
 
-      $output = $("<div>")
+      $output = $("<div class='form'>")
       $output.html(output)
 
       $output.find("[name=content]").summernote {

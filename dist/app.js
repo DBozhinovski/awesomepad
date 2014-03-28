@@ -362,8 +362,8 @@
           if (doc == null) {
             doc = false;
           }
-          output = "<label>title</label> <input type='text' name='title' /> <label>content</label> <div name='content'></div> <label>category</label> <select name='category'></select><button class='add' data-action='add-category'>+</button> <div class='actions'> <button data-action='save'>save</button> <button data-action='close'>cancel</button> </div>";
-          $output = $("<div>");
+          output = "<label class='formitem'>title</label> <input class='formitem' type='text' name='title' /> <label class='formitem'>content</label> <div class='formitem' name='content'></div> <label class='formitem'>category</label> <select class='formitem' name='category'></select><button class='formitem add' data-action='add-category'>+</button> <div class='actions'> <button class='formitem' data-action='save'>save</button> <button class='formitem' data-action='close'>cancel</button> </div>";
+          $output = $("<div class='form'>");
           $output.html(output);
           $output.find("[name=content]").summernote({
             height: 400
@@ -448,7 +448,7 @@
 
     function DocumentItemView() {
       DocumentItemView.__super__.constructor.call(this, $("#canvas"), function(doc) {
-        return "<article> <h1>" + doc.title + "</h1> " + doc.content + " </article> <div class='category'>" + doc.category + "</div> <div class='actions'> <button data-action='edit' data-id='" + doc.id + "'>Edit</button> <button data-action='export' data-id='" + doc.id + "'>Export</button> <button data-action='delete' data-id='" + doc.id + "'>Delete</button> <button data-action='close'>Close</button> </div>";
+        return "<article> <h1>" + doc.title + "</h1> " + doc.content + " </article> <div class='category'>" + doc.category + "</div> <div class='form actions'> <button class='formitem' data-action='edit' data-id='" + doc.id + "'>Edit</button> <button class='formitem' data-action='export-pdf' data-id='" + doc.id + "'>Export (PDF)</button> <button class='formitem' data-action='export-text' data-id='" + doc.id + "'>Export (Text)</button> <button class='formitem' data-action='export-html' data-id='" + doc.id + "'>Export (HTML)</button> <button class='formitem' data-action='publish' data-id='" + doc.id + "'>Publish</button> <button class='formitem' data-action='delete' data-id='" + doc.id + "'>Delete</button> <button class='formitem' data-action='close'>Close</button> </div>";
       });
     }
 
@@ -465,22 +465,50 @@
     DocumentItemView.prototype.bind = function() {
       return this.element.find('button').on('click', (function(_this) {
         return function(event) {
-          var action, doc, link, target;
+          var action, content, doc, file, link, target, text, title;
           target = $(event.currentTarget);
           action = target.attr('data-action');
           switch (action) {
             case 'edit':
               return Controllers.DocumentController.edit(target.attr('data-id'));
-            case 'export':
+            case 'export-pdf':
               doc = new jsPDF;
               doc.fromHTML(_this.element.find('article').html(), 20, 20, {
-                width: 640,
+                width: 1024,
                 elementHandlers: {}
               });
               link = document.createElement("a");
               link.download = "" + (_this.element.find('h1').text()) + ".pdf";
               link.href = doc.output('datauristring');
               return link.click();
+            case 'export-text':
+              text = _this.element.find('article').text();
+              file = new Blob([text], {
+                type: 'text/plain'
+              });
+              link = document.createElement("a");
+              link.download = "" + (_this.element.find('h1').text()) + ".txt";
+              link.href = URL.createObjectURL(file);
+              return link.click();
+            case 'export-html':
+              text = _this.element.find('article').html();
+              file = new Blob([text], {
+                type: 'text/html'
+              });
+              link = document.createElement("a");
+              link.download = "" + (_this.element.find('h1').text()) + ".html";
+              link.href = URL.createObjectURL(file);
+              return link.click();
+            case 'publish':
+              title = _this.element.find('h1').text();
+              content = _this.element.find('article').html();
+              return $.post('http://localhost:8080', {
+                title: title,
+                content: content
+              }, function(response) {
+                alert('published');
+                return Router.call('documents');
+              });
             case 'delete':
               if (confirm("Are you sure?")) {
                 return Controllers.DocumentController["delete"](target.attr('data-id'));
